@@ -63,7 +63,7 @@ func incrDecr(t *testing.T, newCache cacheFactory) {
 		t.Errorf("Expected wraparound 4, got %d", newValue)
 	}
 
-	// Decrement capped at 0
+	// Decrement is not capped at 0
 	newValue, err = cache.Decrement("int", 25)
 	if err != nil {
 		t.Errorf("Error decrementing below 0: %s", err)

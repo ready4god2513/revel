@@ -149,39 +149,19 @@ func (c RedisCache) Delete(key string) error {
 func (c RedisCache) Increment(key string, delta uint64) (uint64, error) {
 	conn := c.pool.Get()
 	defer conn.Close()
-	// Check for existance *before* increment as per the cache contract.
-	// redis will auto create the key, and we don't want that. Since we need to do increment
-	// ourselves instead of natively via INCRBY (redis doesn't support wrapping), we get the value
-	// and do the exists check this way to minimize calls to Redis
-	val, err := conn.Do("GET", key)
-	if err != nil {
-		return 0, err
-	} else if val == nil {
-		return 0, ErrCacheMiss
-	}
-	currentVal, err := redis.Int64(val, nil)
+
+	val, err := redis.Uint64(conn.Do("INCRBY", key, delta))
 	if err != nil {
 		return 0, err
 	}
-	var sum int64 = currentVal + int64(delta)
-	_, err = conn.Do("SET", key, sum)
-	if err != nil {
-		return 0, err
-	}
-	return uint64(sum), nil
+
+	return val, nil
 }
 
 func (c RedisCache) Decrement(key string, delta uint64) (newValue uint64, err error) {
 	conn := c.pool.Get()
 	defer conn.Close()
-	// Check for existance *before* increment as per the cache contract.
-	// redis will auto create the key, and we don't want that, hence the exists call
-	existed, err := exists(conn, key)
-	if err != nil {
-		return 0, err
-	} else if !existed {
-		return 0, ErrCacheMiss
-	}
+
 	// Decrement contract says you can only go to 0
 	// so we go fetch the value and if the delta is greater than the amount,
 	// 0 out the value
